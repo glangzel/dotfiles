@@ -1,0 +1,2 @@
+
+(funcall prescient-cache-callback :version '5 :history '#s(hash-table size 65 test equal rehash-size 1.5 rehash-threshold 0.8125 data ("package-list-packages" 3 "all-the-icons-install-fonts" 2 "test.md" 1 "*GNU Emacs*" 0)) :frequency '#s(hash-table size 65 test equal rehash-size 1.5 rehash-threshold 0.8125 data ("package-list-packages" 1.9731436224857566 "all-the-icons-install-fonts" 0.991026973 "test.md" 0.994009 "*GNU Emacs*" 0.997)) :serial-number '5)

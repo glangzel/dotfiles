@@ -1,0 +1,23 @@
+# 余白設定
+window:
+  padding:
+    x: 4
+    y: 4
+  opacity: 0.8
+
+# フォント設定（サイズのみ）
+font:
+  size: 16
+
+# スクロール設定
+scrolling:
+  history: 10000
+  multiplier: 3
+
+# tmuxで起動する場合
+shell:
+  program: bash
+  args:
+    - -l
+    - -c
+    - "tmux -a -t 0 || tmux -u"
