@@ -1,0 +1,13 @@
+{
+    "languageserver": {
+        "svlangserver": {
+            "command": "svlangserver",
+            "filetypes": ["verilog", "systemverilog"],
+            "rootPatterns": [".git", ".svn", ".hg"],
+            "settings": {
+                "systemverilog.includeIndexing": ["**/*.{sv,v,svh,vh}"],
+                "systemverilog.defineIndexing": ["**/*.{sv,v,svh,vh}"]
+            }
+        }
+    }
+}

@@ -1,0 +1,43 @@
+gui:
+  # 日本語対応
+  # language: 'ja'
+  # マウス操作を有効化
+  mouseEvents: true
+  # アイコンを表示 (Nerd Fontsが必要)
+  # 文字化けする場合は false にしてください
+  showIcons: true
+  # 画面のスクロールオフセット (端まで行く前にスクロール開始)
+  scrollOffMargin: 2
+  # 境界線のスタイル (角を丸くせず、CLIらしくシンプルに)
+  border: 'single'
+  # 時刻のフォーマット
+  timeFormat: '2006-01-02 15:04'
+  # --- テーマ設定 (Gruvbox Dark 風) ---
+  theme:
+    activeBorderColor:
+      - green
+      - bold
+    inactiveBorderColor:
+      - white
+    optionsTextColor:
+      - blue
+    selectedLineBgColor:
+      - reverse # 選択行の色を反転 (Gruvboxの背景色になじみます)
+    defaultFgColor:
+      - default
+    searchingActiveBorderColor:
+      - yellow
+git:
+  pagers:
+    - # diffの配色を良くする
+      colorArg: always
+      pager: delta --dark --paging=never # deltaが入っているとより綺麗ですが、なくても動きます
+  merging:
+    # マージツールをnvimに指定
+    args: '-d'
+  commit:
+    # コミットメッセージ入力時に、詳細(diff)を自動で隠さない
+    signoff: false
+# 更新チェックを無効化 (パッケージマネージャで管理するため)
+update:
+  method: never
