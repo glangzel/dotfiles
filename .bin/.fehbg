@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-feh --no-fehbg --bg-scale '$HOME/.config/i3/nix.png'
