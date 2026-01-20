@@ -30,6 +30,8 @@ vim.opt.mouse = ""
 vim.opt.encoding = "utf-8"
 vim.opt.fileencoding = "utf-8"
 
+-- Terminal Escape設定
+vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { silent = true })
 
 -- 1. 絵文字を使用しない (絵文字を全角幅として扱わない設定)
 -- ※表示自体を禁止するものではありませんが、エディタ上の文字幅計算における「絵文字モード」を無効化します。
@@ -196,6 +198,43 @@ require("lazy").setup({
                 end
             end
             vim.keymap.set("n", "K", '<CMD>lua _G.show_docs()<CR>', {silent = true})
+        end
+    },
+    {
+        'akinsho/toggleterm.nvim',
+        version = "*",
+        config = function()
+            require("toggleterm").setup({
+                -- 1. Ctrl + \ で開閉する設定
+                open_mapping = [[<C-\>]],
+
+                -- 2. 見た目の設定
+                -- 'horizontal': VSCodeのように下に分割して表示
+                -- 'float': 真ん中に浮かせて表示
+                direction = 'horizontal', 
+                
+                -- 下に表示するときの高さ
+                size = 15,
+
+                -- シェルを枠線で囲むかどうか (floatの時などに有効)
+                shade_terminals = true,
+            })
+
+            -- 3. ターミナル操作の便利設定
+            -- ターミナルが開いたときだけ有効になるキーマップを定義
+            function _G.set_terminal_keymaps()
+              local opts = {buffer = 0}
+              -- Esc キーでターミナルモード(入力)から抜ける (これが無いとCtrl+\+nが必要で大変です)
+              vim.keymap.set('t', '<Esc>', [[<C-\><C-n>]], opts)
+              -- jk でウィンドウ移動もできるようにする (お好みで)
+              vim.keymap.set('t', '<C-h>', [[<Cmd>wincmd h<CR>]], opts)
+              vim.keymap.set('t', '<C-j>', [[<Cmd>wincmd j<CR>]], opts)
+              vim.keymap.set('t', '<C-k>', [[<Cmd>wincmd k<CR>]], opts)
+              vim.keymap.set('t', '<C-l>', [[<Cmd>wincmd l<CR>]], opts)
+            end
+
+            -- 上記のキー設定を適用
+            vim.cmd('autocmd! TermOpen term://* lua set_terminal_keymaps()')
         end
     }
 })
