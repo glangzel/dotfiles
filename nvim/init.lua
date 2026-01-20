@@ -63,14 +63,14 @@ vim.opt.rtp:prepend(lazypath)
 -- ==========================================
 require("lazy").setup({
     --Parser: TreeSitter
-    {
-        'nvim-treesitter/nvim-treesitter',
-        lazy = false,
-        build = ':TSUpdate',
-	config = function()
-	    require'nvim-treesitter'.install { 'cpp', 'verilog', 'lua' , 'vim', 'vimdoc', 'query', 'markdown' }
-	end
-    },
+--     {
+--         'nvim-treesitter/nvim-treesitter',
+--         lazy = false,
+--         build = ':TSUpdate',
+-- 	config = function()
+-- 	    require'nvim-treesitter'.install { 'cpp', 'lua' , 'vim', 'vimdoc', 'query', 'markdown' }
+-- 	end
+--     },
     -- カラースキーム: Gruvbox
     { 
         "ellisonleao/gruvbox.nvim", 
@@ -105,33 +105,63 @@ require("lazy").setup({
             })
         end
     },
-
     -- ファイラ: Fern
     {
         'lambdalisue/fern.vim',
+        dependencies = {
+            'lambdalisue/fern-hijack.vim',            -- 1. nvim {dir} でFernを起動させる
+            'lambdalisue/nerdfont.vim',               -- 2. アイコン用フォント
+
+            'lambdalisue/fern-renderer-nerdfont.vim', -- 2. Fernでアイコンを表示するレンダラー
+            'lambdalisue/glyph-palette.vim',          -- 2. アイコンに色をつける (VSCodeライクにするため推奨)
+        },
         config = function()
-            -- Ctrl+n でファイラを開閉する設定
+            -- -----------------------------------------
+            -- 基本設定
+
+            -- -----------------------------------------
+            -- Ctrl+n でファイラを開閉
             vim.keymap.set('n', '<C-n>', ':Fern . -drawer -toggle<CR>', { silent = true })
             -- 隠しファイルを表示
             vim.g['fern#default_hidden'] = 1
+
+
+            -- -----------------------------------------
+            -- VSCodeライクな見た目 & 補助線
+            -- -----------------------------------------
+            -- アイコンを表示するためのレンダラー設定
+            vim.g['fern#renderer'] = 'nerdfont'
+
+            -- 3. ディレクトリの階層に補助線（ガイドライン）を引く
+            vim.g['fern#renderer#nerdfont#indent_markers'] = 1
+
+            -- アイコンに色をつける自動コマンド (glyph-palette)
+            vim.api.nvim_create_autocmd("FileType", {
+                pattern = "fern",
+                callback = function()
+                    vim.fn['glyph_palette#apply']()
+                
+                    -- 2. キーマップ変更: Enterを 'l' (open:or-expand) と同じにする
+                    -- local opts = { buffer = true, silent = true, remap = true }
+                    -- vim.keymap.set('n', '<CR>', '<Plug>(fern-action-open:or-expand)', opts)
+                    vim.keymap.set('n', '<CR>', 'l', { buffer = true, remap = true })
+                end,
+
+            })
         end
     },
 
-    -- あいまい検索: Telescope
+    -- あいまい検索: Telescope (変更なし)
     {
         'nvim-telescope/telescope.nvim', tag = '0.1.5',
         dependencies = { 'nvim-lua/plenary.nvim' },
         config = function()
             local builtin = require('telescope.builtin')
-            -- <Leader>ff でファイル検索
             vim.keymap.set('n', '<leader>ff', builtin.find_files, {})
-            -- <Leader>fg で文字検索 (Grep)
             vim.keymap.set('n', '<leader>fg', builtin.live_grep, {})
-            -- <Leader>fb で開いているバッファ検索
             vim.keymap.set('n', '<leader>fb', builtin.buffers, {})
         end
     },
-
     -- 自動補完・LSP: CoC.nvim
     {
         'neoclide/coc.nvim',
