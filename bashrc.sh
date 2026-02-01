@@ -173,8 +173,33 @@ fi
 
 
 
+# ============================================
+# 6. GHQ設定
+# ============================================
+
+function ghq-path() {
+    ghq list --full-path | fzf
+}
+
+function dev() {
+    local moveto
+    moveto=$(ghq-path)
+    cd "${moveto}" || exit 1
+
+    # rename session if in tmux
+
+    if [[ -n ${TMUX} ]]; then
+        local repo_name
+        repo_name="${moveto##*/}"
+
+        tmux rename-session "${repo_name//./-}"
+    fi
+}
+
+
+
 # ==========================================
-# 4. プロンプト設定 (Git Status Prompt)
+# 5. プロンプト設定 (Git Status Prompt)
 # ==========================================
 
 # Gitリポジトリ情報を取得する関数の定義

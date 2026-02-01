@@ -1,6 +1,8 @@
 -- ==========================================
 -- 1. 基本設定 (Basic Settings)
 -- ==========================================
+vim.opt.shortmess:append("I")
+
 -- リーダーキーをスペースに設定 (これが起点となります)
 vim.g.mapleader = " "
 
@@ -30,6 +32,11 @@ vim.opt.mouse = ""
 vim.opt.encoding = "utf-8"
 vim.opt.fileencoding = "utf-8"
 
+-- バッファ切替
+vim.keymap.set('n', '<C-j>', ':bprev<CR>', { silent = true })
+vim.keymap.set('n', '<C-k>', ':bnext<CR>', { silent = true })
+vim.keymap.set('n', '<leader>bd', '<cmd>bp|bd #<CR>', { desc = '現在バッファを即閉じる（注意）' })
+
 -- Terminal Escape設定
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { silent = true })
 
@@ -43,6 +50,89 @@ vim.opt.number = true -- 代わりに通常の絶対行番号を表示する（�
 
 -- 3. 現在位置の行をハイライト表示する
 vim.opt.cursorline = true
+
+-- 選択単語を検索
+
+-- Visual * : 選択範囲をリテラル( \V )として検索
+vim.keymap.set('x', '*', function()
+  -- 選択範囲をレジスタ v にヤンク
+  vim.cmd([[normal! "vy]])
+  -- 取り出し
+  local text = vim.fn.getreg('v')
+  --   escape(@v,'\/')  ->  / と \ をエスケープ
+  --   substitute(...,"\n",'\\n','g') -> 改行を \n に変換
+  local pat = vim.fn.escape(text, [[\/]])
+  pat = vim.fn.substitute(pat, "\n", [[\\n]], "g")
+  -- very nomagic で検索（完全一致検索）
+  local search_pat = [[\V]] .. pat
+  -- 検索レジスタに入れて、ハイライトも効くようにする
+  vim.fn.setreg('/', search_pat)
+  -- 次の一致へ移動（必要なら 'W' で末尾まで行ったら止まる、'w' でラップ）
+  vim.fn.search(search_pat, 'w')
+end, { silent = true, desc = "Search selected text literally" })
+
+
+-- ==========================================
+-- 4. カスタムコマンド (Pandoc & Browser)
+-- ==========================================
+
+local function md_to_html_and_open()
+    -- 未保存だと変換が古いので保存
+    pcall(vim.cmd, "write")
+
+
+    local filepath = vim.fn.expand('%:p')
+    if filepath == nil or filepath == "" then
+        print("Error: buffer has no file path (save the file first).")
+        return
+    end
+
+    local filename_no_ext = vim.fn.expand('%:p:r')
+    local output_file = filename_no_ext .. ".html"
+
+    -- CSSファイルのフルパス
+    local css_path = vim.fn.expand('~/.config/nvim/utils/ik.css')
+
+    -- 画像など相対パス用: md のあるディレクトリ
+
+    local resource_dir = vim.fn.expand('%:p:h')
+
+    -- shellescape で安全にクォート（最小修正で堅牢化）
+    local se = vim.fn.shellescape
+
+    -- Pandocコマンド
+    local pandoc_cmd = string.format(
+        "pandoc -s %s -o %s -c %s --metadata title=%s --resource-path=%s",
+        se(filepath),
+        se(output_file),
+        se(css_path),
+        se("Preview"),
+        se(resource_dir)
+    )
+
+    vim.fn.system(pandoc_cmd)
+
+
+    if vim.v.shell_error == 0 then
+        -- 初回だけブラウザで開く（以後は変換のみ）
+        if not vim.b.pdhtml_opened then
+            local win_path = vim.fn.system(string.format("wslpath -w %s", se(output_file))):gsub("\n", "")
+            -- 既定ブラウザで開く（& は不要）
+            vim.fn.system(string.format("explorer.exe %s", se(win_path)))
+
+            vim.b.pdhtml_opened = true
+            print("Done: GitHub-style HTML opened (first time)")
+        else
+            print("Done: HTML updated (browser already opened)")
+        end
+    else
+        print("Error: Pandoc conversion failed.")
+    end
+end
+
+-- コマンド :Pdhtml を登録
+vim.api.nvim_create_user_command('Pdhtml', md_to_html_and_open, {})
+
 
 -- ==========================================
 -- 2. プラグインマネージャ (lazy.nvim) のセットアップ
@@ -65,14 +155,14 @@ vim.opt.rtp:prepend(lazypath)
 -- ==========================================
 require("lazy").setup({
     --Parser: TreeSitter
---     {
---         'nvim-treesitter/nvim-treesitter',
---         lazy = false,
---         build = ':TSUpdate',
--- 	config = function()
--- 	    require'nvim-treesitter'.install { 'cpp', 'lua' , 'vim', 'vimdoc', 'query', 'markdown' }
--- 	end
---     },
+--    {
+--        'nvim-treesitter/nvim-treesitter',
+--        lazy = false,
+--        build = ':TSUpdate',
+--	config = function()
+--	    require'nvim-treesitter'.install { 'cpp', 'verilog', 'lua' , 'vim', 'vimdoc', 'query', 'markdown' }
+--	end
+--    },
     -- カラースキーム: Gruvbox
     { 
         "ellisonleao/gruvbox.nvim", 
@@ -95,6 +185,13 @@ require("lazy").setup({
                     component_separators = '|',
                     section_separators = '',
                 },
+                
+                sections = {
+                  lualine_a = { 'mode' },
+                  lualine_b = { 'branch' },
+                  lualine_c = { { 'filename', path = 3 } },
+                },
+
                 tabline = {
                     -- 左上: 開いているバッファ(ファイル)一覧を表示
                     lualine_a = {{
@@ -107,6 +204,7 @@ require("lazy").setup({
             })
         end
     },
+
     -- ファイラ: Fern
     {
         'lambdalisue/fern.vim',
@@ -118,15 +216,11 @@ require("lazy").setup({
             'lambdalisue/glyph-palette.vim',          -- 2. アイコンに色をつける (VSCodeライクにするため推奨)
         },
         config = function()
-            -- -----------------------------------------
-            -- 基本設定
 
-            -- -----------------------------------------
-            -- Ctrl+n でファイラを開閉
             vim.keymap.set('n', '<C-n>', ':Fern . -drawer -toggle<CR>', { silent = true })
+
             -- 隠しファイルを表示
             vim.g['fern#default_hidden'] = 1
-
 
             -- -----------------------------------------
             -- VSCodeライクな見た目 & 補助線
@@ -150,9 +244,47 @@ require("lazy").setup({
                 end,
 
             })
+        
+            -- local fern_group = vim.api.nvim_create_augroup('FernStartup', { clear = true })
+            local fern_group = vim.api.nvim_create_augroup('FernMyConf', { clear = true })
+
+            vim.api.nvim_create_autocmd('BufRead', {
+              group = 'FernMyConf',
+              nested = true, --　必須
+              callback = function()
+                if vim.bo.filetype ~= "fern" and vim.bo.buftype == "" then
+                  vim.cmd [[Fern . -reveal=% -drawer -stay]]
+                end
+              end
+            })
+            -- 1) 起動時に Fern を開く（フォーカスを奪いたくなければ -stay）
+            -- vim.api.nvim_create_autocmd('VimEnter', {
+            --   group = fern_group,
+            --   nested = true,
+            --   callback = function()
+            --     -- 必ず表示したいなら -toggle は付けない方が安定します
+            -- 
+            --     -- -reveal=% は「現在バッファの位置を展開してフォーカス」[4](https://github.com/lambdalisue/vim-fern)
+            --     vim.cmd([[Fern . -drawer -reveal=% -stay]])
+            --   end,
+            -- })
+            
+            -- 2) Fern バッファが開いたら自動で「enter」してディレクトリ一覧を表示
+            -- vim.api.nvim_create_autocmd('FileType', {
+            --   group = fern_group,
+            --   pattern = 'fern',
+            --   callback = function()
+            --     -- ルート（.）からディレクトリに「入る」= enter アクション[1](https://github-wiki-see.page/m/lambdalisue/vim-fern/wiki/Tips)[2](https://zenn.dev/masaino/articles/1051a7c0ae8a8c)
+            --     vim.api.nvim_feedkeys(
+            --       vim.api.nvim_replace_termcodes("<Plug>(fern-action-enter)", true, false, true),
+            --       "n",
+            -- 
+            --       false
+            --     )
+            --   end,
+            -- })
         end
     },
-
     -- あいまい検索: Telescope (変更なし)
     {
         'nvim-telescope/telescope.nvim', tag = '0.1.5',
@@ -163,8 +295,7 @@ require("lazy").setup({
             vim.keymap.set('n', '<leader>fg', builtin.live_grep, {})
             vim.keymap.set('n', '<leader>fb', builtin.buffers, {})
         end
-    },
-    -- 自動補完・LSP: CoC.nvim
+    }, -- 自動補完・LSP: CoC.nvim
     {
         'neoclide/coc.nvim',
         branch = 'release',
@@ -199,6 +330,19 @@ require("lazy").setup({
             end
             vim.keymap.set("n", "K", '<CMD>lua _G.show_docs()<CR>', {silent = true})
         end
+    },
+    {
+      "sindrets/diffview.nvim",
+      config = function ()
+        require("diffview").setup()
+      end,
+      lazy = false,
+      keys = {
+        {mode = "n", "<leader>hh", "<cmd>DiffviewOpen HEAD~1<CR>", desc = "1つ前とのdiff"},
+        {mode = "n", "<leader>hf", "<cmd>DiffviewFileHistory %<CR>", desc = "ファイルの変更履歴"},
+        {mode = "n", "<leader>hc", "<cmd>DiffviewClose<CR>", desc = "diffの画面閉じる"},
+        {mode = "n", "<leader>hd", "<cmd>Diffview<CR>", desc = "コンフリクト解消画面表示"},
+      },
     },
     {
         'akinsho/toggleterm.nvim',

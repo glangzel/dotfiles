@@ -1,77 +1,90 @@
 #!/bin/bash
-set -e
+# This script creates symlinks from the home directory to the dotfiles in this repository.
 
-# 設定ファイルアーカイブ名
-ARCHIVE_NAME="dotfiles.tar.gz"
-EXTRACT_DIR="my_dev_env"
 
-# アーカイブがあるか確認
-if [ ! -f "$ARCHIVE_NAME" ]; then
-    echo "エラー: $ARCHIVE_NAME が同じディレクトリに見つかりません。"
-    exit 1
-fi
-
-echo "== 環境構築を開始します =="
-
-# 1. ソフトウェアのインストール (必要に応じてsudoパスワードが求められます)
-echo "1. ソフトウェアをインストールしています..."
+# 1. Install SW
 if command -v apt &> /dev/null; then
     sudo apt update
-    sudo apt install -y neovim tmux git curl tar ripgrep
-    # ※ ripgrep は neovim (telescope等) でよく使うため追加しています
+    sudo apt install -y neovim tmux git curl tar ripgrep tig clang nodejs-lts python golang
+elif command -v pkg &> /dev/null; then
+    termux-setup-storage
+    pkg update
+    pkg install -y termux-api
+    pkg install -y neovim tmux git curl tar ripgrep tig clang nodejs-lts python golang
+    go install github.com/d-kuro/gwq/cmd/gwq@latest
+    go install github.com/x-motemen/ghq@latest
+    npm install -g @google/gemini-cli --ignore-scripts
 elif command -v dnf &> /dev/null; then
     # RHEL/CentOS/Fedora系の場合
-    sudo dnf install -y neovim tmux git curl tar ripgrep
+    sudo dnf install -y neovim tmux git curl tar ripgrep tig clang nodejs-lts python golang
 else
-    echo "警告: パッケージマネージャーが特定できませんでした。"
-    echo "手動で neovim, tmux, git, curl をインストールしてください。"
+    echo "Can't detect Package Manager !!!"
 fi
 
-# 2. 設定ファイルの展開
-echo "2. 設定ファイルを配置しています..."
-tar -xzf "$ARCHIVE_NAME"
 
-# バックアップを取りつつ配置
+# Get the directory of this script
+DOTFILES_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Function to copy a file and create its parent directory if needed
+# $1: source file in dotfiles repo
+# $2: target file in home directory
+copy_file_and_create_dir() {
+    local source_file="$1"
+    local target_file="$2"
+    local target_dir
+
+    # Ensure the source file exists
+    if [ ! -e "$source_file" ]; then
+        echo "Source file not found: $source_file"
+        return
+    fi
+
+    # Create parent directory of target if it doesn't exist
+    target_dir=$(dirname "$target_file")
+    if [ ! -d "$target_dir" ]; then
+        echo "Creating directory: $target_dir"
+        mkdir -p "$target_dir"
+    fi
+
+    # Remove existing file or symlink at the target location (not needed for cp -f)
+    # if [ -e "$target_file" ] || [ -L "$target_file" ]; then
+    #     echo "Removing existing file: $target_file"
+    #     rm -rf "$target_file"
+    # fi
+
+    # Copy the file
+    echo "Copying file: $target_file <- $source_file"
+    cp -f "$source_file" "$target_file"
+    echo "---------------------------------"
+}
+
 # Bash
-if [ -f ~/.bashrc ]; then
-    mv ~/.bashrc ~/.bashrc.backup.$(date +%F_%T)
-fi
-cp "$EXTRACT_DIR/.bashrc" ~/
+copy_file_and_create_dir "$DOTFILES_DIR/bashrc.sh" "$HOME/.bashrc"
+
+# Tig
+copy_file_and_create_dir "$DOTFILES_DIR/tig.rc" "$HOME/.tigrc"
 
 # Tmux
-if [ -f ~/.tmux.conf ]; then
-    mv ~/.tmux.conf ~/.tmux.conf.backup.$(date +%F_%T)
-fi
-cp "$EXTRACT_DIR/.tmux.conf" ~/
+copy_file_and_create_dir "$DOTFILES_DIR/tmux.conf" "$HOME/.tmux.conf"
+
+# Alacritty
+copy_file_and_create_dir "$DOTFILES_DIR/alacritty/alacritty.toml" "$HOME/.config/alacritty/alacritty.toml"
+
+# Lazygit
+copy_file_and_create_dir "$DOTFILES_DIR/lazygit/config.yml" "$HOME/.config/lazygit/config.yml"
 
 # Neovim
-mkdir -p ~/.config/nvim
-if [ -d ~/.config/nvim ]; then
-    # 既存の設定があればバックアップ
-    if [ "$(ls -A ~/.config/nvim)" ]; then
-        mv ~/.config/nvim ~/.config/nvim.backup.$(date +%F_%T)
-        mkdir -p ~/.config/nvim
-    fi
-fi
-cp -r "$EXTRACT_DIR/config/nvim/"* ~/.config/nvim/
+copy_file_and_create_dir "$DOTFILES_DIR/nvim/init.lua" "$HOME/.config/nvim/init.lua"
+copy_file_and_create_dir "$DOTFILES_DIR/nvim/coc-settings.json" "$HOME/.config/nvim/coc-settings.json"
 
-# 展開した一時フォルダの削除
-rm -rf "$EXTRACT_DIR"
+# Vim
+copy_file_and_create_dir "$DOTFILES_DIR/vim/vimrc.vim" "$HOME/.vimrc"
+copy_file_and_create_dir "$DOTFILES_DIR/vim/vim/statusline.vim" "$HOME/.vim/statusline.vim"
 
-# 3. Tmux Plugin Manager (TPM) のインストール
-# tmuxプラグインを自動管理するために必要です
-TPM_DIR=~/.tmux/plugins/tpm
-if [ ! -d "$TPM_DIR" ]; then
-    echo "3. Tmux Plugin Manager (TPM) をインストール中..."
-    git clone https://github.com/tmux-plugins/tpm "$TPM_DIR"
-else
-    echo "3. TPMは既にインストールされています。"
-fi
+# Git
+copy_file_and_create_dir "$DOTFILES_DIR/git/config" "$HOME/.gitconfig"
 
-echo "------------------------------------------------"
-echo "完了しました！"
-echo ""
-echo "【重要: 次のアクション】"
-echo "1. bash設定を反映するため、再ログインするか 'source ~/.bashrc' を実行してください。"
-echo "2. Neovimを開くと、lazy.nvim等が自動でプラグインをインストールし始めます。"
-echo "3. tmuxを開き、'Prefix + I' (大文字アイ) を押してプラグインをインストールしてください。"
+# Ghq
+copy_file_and_create_dir "$DOTFILES_DIR/gwq/config.toml" "$HOME/.config/ghq/config.toml"
+
+echo "Setup complete."
