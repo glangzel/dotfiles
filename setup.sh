@@ -87,4 +87,7 @@ copy_file_and_create_dir "$DOTFILES_DIR/git/config" "$HOME/.gitconfig"
 # Ghq
 copy_file_and_create_dir "$DOTFILES_DIR/gwq/config.toml" "$HOME/.config/ghq/config.toml"
 
+# Termux
+copy_file_and_create_dir "$DOTFILES_DIR/termux/colors.properties" "$HOME/.termux/colors.properties"
+
 echo "Setup complete."
